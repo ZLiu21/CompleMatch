@@ -1,0 +1,11 @@
+aeon==0.9.0
+fastai==2.7.18
+fastcore==1.7.28
+numpy==1.26.4
+pandas==1.5.3
+python=3.10.9
+torch=1.12.0+cu113
+scikit-learn==1.4.2
+scipy==1.10.1
+tsaug==0.2.1
+tslearn==0.7.0
