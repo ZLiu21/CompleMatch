@@ -14,7 +14,7 @@ import torch
 import torch.fft as fft
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
-from ts_data.preprocessing import fill_nan_value
+from ts_data.preprocessing import normalize_per_series, fill_nan_value
 from ts_data.dataloader import UCRDataset, UCRTFAugDataset
 from ts_model.loss import sup_contrastive_loss, reg_co_training_loss, SimCLRContrastiveLoss
 from ts_model.model import ProjectionHead, base_Model, ClassifierLogit
@@ -22,6 +22,7 @@ from utils.ts_utils import set_seed, build_dataset, get_all_datasets, \
     construct_graph_via_knn_cpl_nearind_gpu, \
     build_loss, shuffler, evaluate, convert_coeff
 from utils.aug_utils import get_freq_augmentation, get_time_augmentation
+from ts_augmentation.parameters_ten_datasets import *
 
 
 def transfer_labels(labels):
@@ -79,7 +80,7 @@ if __name__ == '__main__':
     parser.add_argument('--kernel_size', type=int, default=8, help='')
     parser.add_argument('--final_out_channels', type=int, default=128, help='')
     parser.add_argument('--stride', type=int, default=1, help='')
-    parser.add_argument('--dropout', type=int, default=0.35, help='')
+    parser.add_argument('--dropout', type=float, default=0.35, help='')
     parser.add_argument('--input_channels', type=int, default=1, help='')
 
     # Dataset setup
@@ -90,30 +91,30 @@ if __name__ == '__main__':
 
     # Semi training
     parser.add_argument('--labeled_ratio', type=float, default=0.05, help='0.01, 0.05')
-    parser.add_argument('--warmup_epochs', type=int, default=40, help='warmup epochs using only labeled data for ssc')
+    parser.add_argument('--warmup_epochs', type=int, default=60, help='warmup epochs using only labeled data for ssc')
     parser.add_argument('--queue_maxsize', type=int, default=3, help='2 or 3')
-    parser.add_argument('--knn_num_tem', type=int, default=40, help='10, 20, 50')
-    parser.add_argument('--knn_num_feq', type=int, default=30, help='10, 20, 50')
+    parser.add_argument('--knn_num_tem', type=int, default=20, help='10, 20, 50')
+    parser.add_argument('--knn_num_feq', type=int, default=20, help='10, 20, 50')
 
     ## Augmentation
     parser.add_argument('--aug_time_method_index', type=int, default=1, help='1,2,3,4,5,6')
     parser.add_argument('--aug2_time_method_index', type=int, default=3, help='1,2,3,4,5,6')
     parser.add_argument('--aug_freq_method_index', type=int, default=1, help='1,2,3,4')
     parser.add_argument('--aug2_freq_method_index', type=int, default=2, help='1,2,3,4')
-    parser.add_argument('--self_contra_tau', type=float, default=10, help='0.1') 
+    parser.add_argument('--self_contra_tau', type=float, default=100, help='0.1') 
 
     # Contrastive loss
-    parser.add_argument('--sup_con_mu', type=float, default=0.05, help='0.05 or 0.005')
-    parser.add_argument('--sup_con_lamda', type=float, default=0.05, help='0.05 or 0.005')
+    parser.add_argument('--sup_con_mu', type=float, default=0.5, help='')
+    parser.add_argument('--sup_con_lamda', type=float, default=0.5, help='')
     parser.add_argument('--mlp_head', type=bool, default=True, help='head project')
-    parser.add_argument('--temperature', type=float, default=50, help='20, 50')
+    parser.add_argument('--temperature', type=float, default=0.5, help='')
 
     # training setup
     parser.add_argument('--loss', type=str, default='cross_entropy', help='loss function')
     parser.add_argument('--optimizer', type=str, default='adam', help='optimizer')
-    parser.add_argument('--lr', type=float, default=0.001, help='learning rate')
+    parser.add_argument('--lr', type=float, default=0.0003, help='learning rate')
     parser.add_argument('--batch_size', type=int, default=1024, help='')
-    parser.add_argument('--epoch', type=int, default=80, help='training epoch')
+    parser.add_argument('--epoch', type=int, default=100, help='training epoch')
     parser.add_argument('--cuda', type=str, default='cuda:0')
 
     # classifier setup
@@ -125,21 +126,43 @@ if __name__ == '__main__':
     device = torch.device(args.cuda if torch.cuda.is_available() else "cpu")
     set_seed(args)
     
+    if args.labeled_ratio == 0.01:
+        args.aug_time_method_index = time_aug_001labeled[args.dataset]['aug_time_method_index']
+        args.aug2_time_method_index = time_aug_001labeled[args.dataset]['aug2_time_method_index']
+        
+        args.aug_freq_method_index = freq_aug_001labeled[args.dataset]['aug_freq_method_index']
+        args.aug2_freq_method_index = freq_aug_001labeled[args.dataset]['aug2_freq_method_index']
+            
+        args.dropout =  time_aug_001labeled[args.dataset]['dropout']
+        args.self_contra_tau =  time_aug_001labeled[args.dataset]['self_contra_tau']
+        args.lr =  time_aug_001labeled[args.dataset]['lr']
+        
+    if args.labeled_ratio == 0.05:
+        args.aug_time_method_index = time_aug_005labeled[args.dataset]['aug_time_method_index']
+        args.aug2_time_method_index = time_aug_005labeled[args.dataset]['aug2_time_method_index']
+        
+        args.aug_freq_method_index = freq_aug_005labeled[args.dataset]['aug_freq_method_index']
+        args.aug2_freq_method_index = freq_aug_005labeled[args.dataset]['aug2_freq_method_index']
+        
+        args.dropout =  time_aug_005labeled[args.dataset]['dropout']
+        args.self_contra_tau =  time_aug_005labeled[args.dataset]['self_contra_tau']
+        args.lr =  time_aug_005labeled[args.dataset]['lr']
+    
+    total_fold = 1
     if args.dataset == 'HAR' or args.dataset == 'Epilepsy' or args.dataset == 'SleepEDF':
         train_dataset, train_target, val_dataset, val_target, test_dataset, test_target, num_classes = build_dataset_pt(args)
+        
+        if args.dataset == 'SleepEDF': 
+            args.batch_size = 512
     else:
+        total_fold = 5
         sum_dataset, sum_target, num_classes = build_dataset(args)
         train_datasets, train_targets, val_datasets, val_targets, test_datasets, test_targets = get_all_datasets(sum_dataset, sum_target)
         train_dataset = train_datasets[0]
-        train_target = train_targets[0]
-        val_dataset = val_datasets[0]
-        val_target = val_targets[0]
-        test_dataset = test_datasets[0]
-        test_target = test_targets[0]
-        train_dataset, val_dataset, test_dataset = fill_nan_value(train_dataset, val_dataset, test_dataset)
         train_dataset = np.expand_dims(train_dataset, axis=1)
-        val_dataset   = np.expand_dims(val_dataset, axis=1)
-        test_dataset  = np.expand_dims(test_dataset, axis=1)
+        
+        if args.dataset == 'ElectricDevices': 
+            args.batch_size = 2048
         
     args.num_classes = num_classes
     args.seq_len = train_dataset.shape[2]
@@ -150,7 +173,6 @@ if __name__ == '__main__':
     if args.batch_size * 2 > train_dataset.shape[0]:
         args.queue_maxsize = 2
         
-    
     ## Time Domain Settings
     args.features_len = dataset_para[args.dataset]['features_len']
     args.input_channels = args.input_size
@@ -225,7 +247,27 @@ if __name__ == '__main__':
     test_accuracies_feq = []
     end_val_epochs_feq = []
 
-    for i in range(1):
+    for i in range(total_fold):
+        print("Fold ", i, " start training:")
+        
+        if total_fold > 1:
+            train_dataset = train_datasets[i]
+            train_target = train_targets[i]
+            val_dataset = val_datasets[i]
+            val_target = val_targets[i]
+            test_dataset = test_datasets[i]
+            test_target = test_targets[i]
+            train_dataset, val_dataset, test_dataset = fill_nan_value(train_dataset, val_dataset, test_dataset)
+            
+            # TODO normalize per series
+            train_dataset = normalize_per_series(train_dataset)
+            val_dataset = normalize_per_series(val_dataset)
+            test_dataset = normalize_per_series(test_dataset)
+            
+            train_dataset = np.expand_dims(train_dataset, axis=1)
+            val_dataset   = np.expand_dims(val_dataset, axis=1)
+            test_dataset  = np.expand_dims(test_dataset, axis=1)
+                
         t = time.time()
         
         ## Time Domain

@@ -41,7 +41,7 @@ if __name__ == '__main__':
     parser.add_argument('--kernel_size', type=int, default=8, help='')
     parser.add_argument('--final_out_channels', type=int, default=128, help='')
     parser.add_argument('--stride', type=int, default=1, help='')
-    parser.add_argument('--dropout', type=int, default=0.35, help='')
+    parser.add_argument('--dropout', type=float, default=0.35, help='')
     parser.add_argument('--input_channels', type=int, default=1, help='')
     parser.add_argument('--random_seed', type=int, default=42, help='shuffle seed')
 
@@ -53,7 +53,7 @@ if __name__ == '__main__':
 
     # Semi training
     parser.add_argument('--labeled_ratio', type=float, default=0.1, help='0.1, 0.2, 0.4')
-    parser.add_argument('--warmup_epochs', type=int, default=40, help='warmup epochs using only labeled data for ssc')
+    parser.add_argument('--warmup_epochs', type=int, default=60, help='warmup epochs using only labeled data for ssc')
     parser.add_argument('--queue_maxsize', type=int, default=3, help='2 or 3')
     parser.add_argument('--knn_num_tem', type=int, default=40, help='10, 20, 50')
     parser.add_argument('--knn_num_feq', type=int, default=30, help='10, 20, 50')
@@ -76,7 +76,7 @@ if __name__ == '__main__':
     parser.add_argument('--optimizer', type=str, default='adam', help='optimizer')
     parser.add_argument('--lr', type=float, default=0.001, help='learning rate')
     parser.add_argument('--batch_size', type=int, default=1024, help='')
-    parser.add_argument('--epoch', type=int, default=80, help='training epoch')
+    parser.add_argument('--epoch', type=int, default=100, help='training epoch')
     parser.add_argument('--cuda', type=str, default='cuda:0')
 
     # classifier setup
@@ -175,8 +175,6 @@ if __name__ == '__main__':
     end_val_epochs_feq = []
 
     for i, train_dataset in enumerate(train_datasets):
-        if i > 0:
-            break
         t = time.time()
 
         ## Time Domain
