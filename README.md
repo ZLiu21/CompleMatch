@@ -1,7 +1,7 @@
 
-# CompleMatch: Boosting Time-Series Semi-supervised Classification with Temporal-Frequency Complementarity
+# [CompleMatch: Boosting Time-Series Semi-supervised Classification with Temporal-Frequency Complementarity](https://ieeexplore.ieee.org/abstract/document/11300955)
 
-This repository contains the training code for our paper *"CompleMatch: Boosting Time-Series Semi-supervised Classification with Temporal-Frequency Complementarity"*.
+This repository contains the training code for our paper *"[CompleMatch: Boosting Time-Series Semi-supervised Classification with Temporal-Frequency Complementarity](https://ieeexplore.ieee.org/abstract/document/11300955)"*.
 
 ---
 
@@ -77,3 +77,15 @@ python main_comple_match_multi_uea.py --labeled_ratio 0.1 --your_args_here
 ```
 
 For all available arguments and detailed usage, refer to [`main_comple_match_multi_uea.py`](main_comple_match_multi_uea.py).
+
+## Citation
+If you use this code for your research, please cite our paper:
+```
+@article{liu2025comple,
+  title={CompleMatch: Boosting Time-Series Semi-Supervised Classification With Temporal-Frequency Complementarity}, 
+  author={Liu, Zhen and Zeng, Kun and Ma, Qianli and Kwok, James T.},
+  journal={IEEE Transactions on Pattern Analysis and Machine Intelligence}, 
+  pages={1-14},
+  year={2025}
+}
+```
